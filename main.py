@@ -1,8 +1,5 @@
 import cv2
 
-from detector import Detector, filter_fields, visualize
-from tracker import Tracker
-
 
 def main():
 
@@ -12,7 +9,7 @@ def main():
     counter used for checking whether a tracked object has crossed line and keeping counts
     aggregator used for checking time intervals (when to print out and reset counts)
     """
-    detector = Detector()
+    # detector = Detector()
     # tracker = Tracker()
     # counter = Counter(CROSS)
     # aggregator = Aggregator()
@@ -37,12 +34,12 @@ def main():
             break
         
         # Detect objects on image
-        outputs = detector.detect(im)
-        fields = detector.get_fields(outputs)
-        fields = filter_fields(fields)
+        # outputs = detector.detect(im)
+        # fields = detector.get_fields(outputs)
+        # fields = filter_fields(fields)
 
         # Track the object boxes
-        tracker.track(fields['pred_boxes'])
+        # tracker.track(fields['pred_boxes'])
         
         # Check whether object crosses line
         # counter.check_crosses(tracker.objects)
