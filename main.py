@@ -4,8 +4,11 @@ from detectron2.utils.logger import setup_logger
 setup_logger()
 import numpy as np
 import os, json, cv2, random
+from extract_time import crop_to_time, extract_numbers_from_image
 
 from tracker import match_boxes
+
+from torchvision.ops import nms
 
 # import some common detectron2 utilities
 from detectron2 import model_zoo
@@ -41,6 +44,7 @@ def main():
      
     prev_frame_boxes = []
     prev_frame_classes = []
+    prev_keep = []
 
     while True:
         # Read the video frame by frame
@@ -50,22 +54,34 @@ def main():
         if not ret:
             break
 
+        time_crop = crop_to_time(im, (200, 950), (800, height))
+        time = extract_numbers_from_image(time_crop)
+        cv2.imshow('TIME', time_crop)
+
+        print("TIME:")
+        print(type(time))
+        print(time[:-1])
+
         masked_frame = cv2.bitwise_and(im, im, mask=mask)
 
 
         outputs = predictor(masked_frame)
 
-        print(outputs["instances"])
-
-        pred_boxes = outputs["instances"].pred_boxes.tensor.cpu().numpy()
+        pred_boxes = outputs["instances"].pred_boxes.tensor
         pred_classes = outputs["instances"].pred_classes
+        scores = outputs["instances"].scores
+
+        curr_keep = nms(pred_boxes, scores,0.5)
+
 
         if len(prev_frame_boxes) > 0:
-            matched_pairs, class_pairs = match_boxes(prev_frame_boxes,pred_boxes,prev_frame_classes, pred_classes)
-            print("Matched boxes between frames:", matched_pairs)
-            print("Matches classes between frames:", class_pairs)
+            matched_pairs, class_pairs = match_boxes(prev_frame_boxes,pred_boxes,prev_frame_classes, pred_classes, prev_keep, curr_keep)
+            # print("Matched boxes between frames:", matched_pairs)
+            # print("Matches classes between frames:", class_pairs)
 
         prev_frame_boxes = pred_boxes
+        prev_frame_classes = pred_classes
+        prev_keep = curr_keep
 
         v = Visualizer(im, MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1)
         out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
@@ -74,8 +90,12 @@ def main():
         boundary_color = (0, 0, 255)  # Red color for the boundary
         cv2.polylines(output_image, [roi_pts], isClosed=True, color=boundary_color, thickness=3)
 
-
-        cv2.imshow('OUTPUT', output_image)
+        scale_percent = 50
+        viewport_width = int(width * scale_percent / 100)
+        viewport_height = int(height * scale_percent / 100)
+        frame_resize = cv2.resize(output_image, (viewport_width, viewport_height))
+        
+        cv2.imshow('OUTPUT', frame_resize)
 
         # Press 'q' to exit the video playback early
         if cv2.waitKey(1) & 0xFF == ord('q'):

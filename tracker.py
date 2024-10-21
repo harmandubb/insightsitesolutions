@@ -14,27 +14,29 @@ def compute_iou(box1, box2):
     
     return inter_area / union_area
 
-def match_boxes(previous_frame_boxes, current_frame_boxes, previous_class, current_class, iou_threshold=0.5):
+def match_boxes(previous_frame_boxes, current_frame_boxes, previous_class, current_class, prev_keep, curr_keep, iou_threshold=0.5):
     matched_pairs = []
     class_pairs = []
 
-    for current_box in current_frame_boxes:
+    for current_idx in curr_keep:
         best_iou = 0
         best_prev_box = None
+        best_prev_idx = None
 
-        for prev_box in previous_frame_boxes:
-            iou = compute_iou(current_box, prev_box)
+        for prev_idx in prev_keep:
+            iou = compute_iou(current_frame_boxes[current_idx], previous_frame_boxes[prev_idx])
             if iou > best_iou:
                 # Consider it as the same object
                 best_iou = iou
-                best_prev_box = prev_box
+                best_prev_box = previous_frame_boxes[prev_idx]
+                best_prev_idx = prev_idx
 
         if best_iou > iou_threshold:
-            matched_pairs.append((best_prev_box,current_box))
+            matched_pairs.append((best_prev_box,current_frame_boxes[current_idx]))
             # check if the labels are the same 
-            if (((current_class == 2) or (current_class == 7)) and (previous_class == 2) or (previous_class == 7)):
+            if (((current_class[current_idx] == 2) or (current_class[current_idx] == 7)) and ((previous_class[best_prev_idx] == 2) or (previous_class[best_prev_idx] == 7))):
                 class_pairs.append(2)
-            elif (current_class == previous_class): 
-                class_pairs.append(current_class)
+            elif (current_class[current_idx] == previous_class[best_prev_idx]): 
+                class_pairs.append(current_class[current_idx].item())
     
-    return matched_pairs, 
+    return matched_pairs, class_pairs
