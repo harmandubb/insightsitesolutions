@@ -30,6 +30,12 @@ def main():
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
     predictor = DefaultPredictor(cfg)
+
+    ret, im = cam.read()
+    height, width = im.shape[:2]
+    roi_pts = np.array([[300,height], [1300,350], [1600,300], [width,350], [width,height]])
+    mask = np.zeros(im.shape[:2], dtype=np.uint8) 
+    cv2.fillPoly(mask, [roi_pts], 255)
     
 
     while True:
@@ -40,12 +46,20 @@ def main():
         if not ret:
             break
 
-        outputs = predictor(im)
+        masked_frame = cv2.bitwise_and(im, im, mask=mask)
+
+
+        outputs = predictor(masked_frame)
 
         v = Visualizer(im, MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1)
         out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
 
-        cv2.imshow('OUTPUT', out.get_image())
+        output_image = out.get_image()
+        boundary_color = (0, 0, 255)  # Red color for the boundary
+        cv2.polylines(output_image, [roi_pts], isClosed=True, color=boundary_color, thickness=3)
+
+
+        cv2.imshow('OUTPUT', output_image)
 
         # Press 'q' to exit the video playback early
         if cv2.waitKey(1) & 0xFF == ord('q'):
