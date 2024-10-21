@@ -51,6 +51,9 @@ def main():
 
         outputs = predictor(masked_frame)
 
+        pred_boxes = outputs["instances"].pred_boxes
+        boxes = pred_boxes.tensor.cpu().numpy()
+
         v = Visualizer(im, MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1)
         out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
 
