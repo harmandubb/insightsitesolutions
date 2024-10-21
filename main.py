@@ -36,7 +36,7 @@ def main():
     roi_pts = np.array([[300,height], [1300,350], [1600,300], [width,350], [width,height]])
     mask = np.zeros(im.shape[:2], dtype=np.uint8) 
     cv2.fillPoly(mask, [roi_pts], 255)
-    
+     
 
     while True:
         # Read the video frame by frame
