@@ -1,22 +1,26 @@
-import cv2
+import torch
+import detectron2
+from detectron2.utils.logger import setup_logger
+setup_logger()
+import numpy as np
+import os, json, cv2, random
+
+# import some common detectron2 utilities
+# from detectron2 import model_zoo
+# from detectron2.engine import DefaultPredictor
+# from detectron2.config import get_cfg
+# from detectron2.utils.visualizer import Visualizer
+# from detectron2.data import MetadataCatalog, DatasetCatalog
 
 
 def main():
-
-    """
-    detector used for object detection
-    tracker used for tracking boxes
-    counter used for checking whether a tracked object has crossed line and keeping counts
-    aggregator used for checking time intervals (when to print out and reset counts)
-    """
-    # detector = Detector()
-    # tracker = Tracker()
-    # counter = Counter(CROSS)
-    # aggregator = Aggregator()
     
     # Load the video file
     video_path = 'Converted.mov'
     cam = cv2.VideoCapture(video_path)
+
+    # cfg = get_cnf()
+    
 
     while True:
         # Read the video frame by frame
@@ -28,34 +32,6 @@ def main():
 
         # Process the frame (e.g., display or any other operations)
         cv2.imshow("Frame", im)
-
-        # Press 'q' to exit the video playback early
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-        
-        # Detect objects on image
-        # outputs = detector.detect(im)
-        # fields = detector.get_fields(outputs)
-        # fields = filter_fields(fields)
-
-        # Track the object boxes
-        # tracker.track(fields['pred_boxes'])
-        
-        # Check whether object crosses line
-        # counter.check_crosses(tracker.objects)
-
-        # # Visualize line and tracked objects on image
-        # im_with_results = visualize_line(im,CROSS)
-        # im_with_results = visualize_tracker(im_with_results,tracker)
-        
-        # Get counts and display that on image
-        # results = counter.get_results()
-        # im_with_results = display_text_box(im_with_results,f"{results}")
-
-        # Print results to file and reset counts
-        # if aggregator.check():
-        #     counter.print_results()
-        #     counter.reset()
 
         # Press 'q' to exit the video playback early
         if cv2.waitKey(1) & 0xFF == ord('q'):

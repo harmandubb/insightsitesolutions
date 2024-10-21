@@ -9,7 +9,4 @@ opencv-python==4.10.0.84
 pillow==11.0.0
 setuptools==75.2.0
 sympy==1.13.1
-torch==2.5.0+cpu
-torchaudio==2.5.0+cpu
-torchvision==0.20.0+cpu
 typing_extensions==4.12.2
