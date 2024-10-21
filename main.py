@@ -40,6 +40,7 @@ def main():
     cv2.fillPoly(mask, [roi_pts], 255)
      
     prev_frame_boxes = []
+    prev_frame_classes = []
 
     while True:
         # Read the video frame by frame
@@ -57,10 +58,12 @@ def main():
         print(outputs["instances"])
 
         pred_boxes = outputs["instances"].pred_boxes.tensor.cpu().numpy()
+        pred_classes = outputs["instances"].pred_classes
 
         if len(prev_frame_boxes) > 0:
-            matched_pairs = match_boxes(prev_frame_boxes,pred_boxes)
-            # print("Matched boxes between frames:", matched_pairs)
+            matched_pairs, class_pairs = match_boxes(prev_frame_boxes,pred_boxes,prev_frame_classes, pred_classes)
+            print("Matched boxes between frames:", matched_pairs)
+            print("Matches classes between frames:", class_pairs)
 
         prev_frame_boxes = pred_boxes
 
