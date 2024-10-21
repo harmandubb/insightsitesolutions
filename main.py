@@ -5,6 +5,8 @@ setup_logger()
 import numpy as np
 import os, json, cv2, random
 
+from tracker import match_boxes
+
 # import some common detectron2 utilities
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
@@ -37,6 +39,7 @@ def main():
     mask = np.zeros(im.shape[:2], dtype=np.uint8) 
     cv2.fillPoly(mask, [roi_pts], 255)
      
+    prev_frame_boxes = []
 
     while True:
         # Read the video frame by frame
@@ -51,8 +54,15 @@ def main():
 
         outputs = predictor(masked_frame)
 
-        pred_boxes = outputs["instances"].pred_boxes
-        boxes = pred_boxes.tensor.cpu().numpy()
+        print(outputs["instances"])
+
+        pred_boxes = outputs["instances"].pred_boxes.tensor.cpu().numpy()
+
+        if len(prev_frame_boxes) > 0:
+            matched_pairs = match_boxes(prev_frame_boxes,pred_boxes)
+            # print("Matched boxes between frames:", matched_pairs)
+
+        prev_frame_boxes = pred_boxes
 
         v = Visualizer(im, MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1)
         out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
