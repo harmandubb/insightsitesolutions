@@ -59,7 +59,7 @@ def main():
         cv2.imshow('TIME', time_crop)
 
         print("TIME:")
-        print(time[:-1])
+        print(time)
 
         masked_frame = cv2.bitwise_and(im, im, mask=mask)
 
