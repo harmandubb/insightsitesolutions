@@ -5,11 +5,13 @@ setup_logger()
 import numpy as np
 import os, json, cv2, random
 import pytesseract
-from extract_time import crop_to_time, extract_time_white_filter, extract_time_combined_filter, extract_time_black_filter
+from extract_time import crop_to_time, extract_time_white_filter, extract_time_combined_filter, extract_time_black_filter, extract_valid_characters
 
 from tracker import match_boxes
 
 from torchvision.ops import nms
+
+from llm import prompt_model, create_prompt
 
 # import some common detectron2 utilities
 from detectron2 import model_zoo
@@ -46,6 +48,11 @@ def main():
     prev_frame_boxes = []
     prev_frame_classes = []
     prev_keep = []
+    times = []
+    time_iterator = 0
+    analyize_iterator = 0
+    llm_use = True
+    time_entries = 15
 
     while True:
         # Read the video frame by frame
@@ -53,20 +60,29 @@ def main():
 
         # Exit the loop if no more frames are available or the video ends
         if not ret:
+            print(times)
             break
-
-        time_crop = crop_to_time(im, (200, 950), (800, height))
-        time = extract_time_white_filter(time_crop)
-        print("WHITE FILTER", time)
-        time = extract_time_black_filter(time_crop)
-        print("BLACK FILTER", time)
-        time = extract_time_combined_filter(time_crop)
-        print("COMBINE FILTER", time)
         
+        if (analyize_iterator % 20 == 0):
+            time_crop = crop_to_time(im, (200, 950), (800, height))
+            time_white, filtered_white = extract_time_white_filter(time_crop)
+            # print("WHITE FILTER", time_white)
+            time_black, filtered_black = extract_time_black_filter(time_crop)
+            # print("BLACK FILTER", time_black)
+            time_combined = extract_time_combined_filter(filtered_white,filtered_black)
+            # print("COMBINE FILTER", time_combined)
 
+            times.append([time_iterator, extract_valid_characters(time_white), extract_valid_characters(time_combined)])
+            time_iterator = time_iterator + 1
 
-        masked_frame = cv2.bitwise_and(im, im, mask=mask)
+            masked_frame = cv2.bitwise_and(im, im, mask=mask)
 
+        analyize_iterator = analyize_iterator + 1
+
+        if ((time_iterator == time_entries) and (llm_use == True)):
+            prompt = create_prompt(times,time_entries)
+            response = prompt_model(prompt)
+            llm_use = False
 
         outputs = predictor(masked_frame)
 

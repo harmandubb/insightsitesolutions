@@ -1,6 +1,7 @@
 import cv2
 import pytesseract
 import numpy as np
+import re
 
 def extract_time_white_filter(im, black_threshold=20, white_threshold=220):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -15,7 +16,7 @@ def extract_time_white_filter(im, black_threshold=20, white_threshold=220):
 
     extracted_text = pytesseract.image_to_string(denoised_w_img)
     
-    return extracted_text
+    return extracted_text, denoised_w_img
 
 def extract_time_black_filter(im, black_threshold=20, white_threshold=220):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -33,31 +34,31 @@ def extract_time_black_filter(im, black_threshold=20, white_threshold=220):
 
     extracted_text = pytesseract.image_to_string(denoised_b_img)
     
-    return extracted_text
+    return extracted_text, denoised_b_img
 
-def extract_time_combined_filter(im, black_threshold=20, white_threshold=220):
-    gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    # cv2.imshow('GRAY TIME', gray)
+def extract_time_combined_filter(im_white, im_black):
+    # gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    # # cv2.imshow('GRAY TIME', gray)
 
-    # Create a mask for white regions (pixel value 255)
-    white_mask = cv2.inRange(gray, white_threshold, 255)  # Pixels that are exactly white
-    # cv2.imshow('WHITE MASK', white_mask)
+    # # Create a mask for white regions (pixel value 255)
+    # white_mask = cv2.inRange(gray, white_threshold, 255)  # Pixels that are exactly white
+    # # cv2.imshow('WHITE MASK', white_mask)
 
-    denoised_w_img = cv2.medianBlur(white_mask, 3)
-    # cv2.imshow('WHITE MASK - NOISE FILTER', denoised_w_img)
+    # denoised_w_img = cv2.medianBlur(white_mask, 3)
+    # # cv2.imshow('WHITE MASK - NOISE FILTER', denoised_w_img)
     
-    # Create a mask for white regions (pixel value 255)
-    black_mask = cv2.inRange(gray, 0, black_threshold)  # Pixels that are exactly white
-    # cv2.imshow('BLACK MASK', black_mask)
+    # # Create a mask for white regions (pixel value 255)
+    # black_mask = cv2.inRange(gray, 0, black_threshold)  # Pixels that are exactly white
+    # # cv2.imshow('BLACK MASK', black_mask)
 
-    selective_noise_reduction = process_noisiest_section(black_mask)
-    # cv2.imshow('BLACK MASK - SELEC NOISE', selective_noise_reduction)
+    # selective_noise_reduction = process_noisiest_section(black_mask)
+    # # cv2.imshow('BLACK MASK - SELEC NOISE', selective_noise_reduction)
 
-    denoised_b_img = cv2.medianBlur(selective_noise_reduction, 3)
-    # cv2.imshow('BLACK MASK - SELEC NOISE - NOISE FILTER', denoised_b_img)
+    # denoised_b_img = cv2.medianBlur(selective_noise_reduction, 3)
+    # # cv2.imshow('BLACK MASK - SELEC NOISE - NOISE FILTER', denoised_b_img)
 
-    # Combine the denoised_w_img and erode_im using bitwise OR
-    combined_img = cv2.bitwise_or(denoised_w_img, denoised_b_img)
+    # # Combine the denoised_w_img and erode_im using bitwise OR
+    combined_img = cv2.bitwise_or(im_white, im_black)
     cv2.imshow('COMBINED IMAGE', combined_img)
 
     extracted_text = pytesseract.image_to_string(combined_img)
@@ -128,3 +129,8 @@ def crop_to_time(im, top_left, bottom_right):
 
     return cropped_im
 
+def extract_valid_characters(input_string):
+    # Extract valid characters (numerical, colon, and hyphen)
+    cleaned_string = ''.join([char for char in input_string if char.isdigit() or char in [':', '-']])
+    # Add a space after every four consecutive numbers
+    return re.sub(r'(\d{4})(?=\d)', r'\1 ', cleaned_string)
