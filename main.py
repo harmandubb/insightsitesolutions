@@ -4,7 +4,8 @@ from detectron2.utils.logger import setup_logger
 setup_logger()
 import numpy as np
 import os, json, cv2, random
-from extract_time import crop_to_time, extract_numbers_from_image
+import pytesseract
+from extract_time import crop_to_time, extract_time_white_filter, extract_time_combined_filter, extract_time_black_filter
 
 from tracker import match_boxes
 
@@ -55,11 +56,14 @@ def main():
             break
 
         time_crop = crop_to_time(im, (200, 950), (800, height))
-        time = extract_numbers_from_image(time_crop)
-        cv2.imshow('TIME', time_crop)
+        time = extract_time_white_filter(time_crop)
+        print("WHITE FILTER", time)
+        time = extract_time_black_filter(time_crop)
+        print("BLACK FILTER", time)
+        time = extract_time_combined_filter(time_crop)
+        print("COMBINE FILTER", time)
+        
 
-        print("TIME:")
-        print(time)
 
         masked_frame = cv2.bitwise_and(im, im, mask=mask)
 
