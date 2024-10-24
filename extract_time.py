@@ -2,6 +2,7 @@ import cv2
 import pytesseract
 import numpy as np
 import re
+from datetime import datetime
 
 def extract_time_white_filter(im, black_threshold=20, white_threshold=220):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -134,3 +135,66 @@ def extract_valid_characters(input_string):
     cleaned_string = ''.join([char for char in input_string if char.isdigit() or char in [':', '-']])
     # Add a space after every four consecutive numbers
     return re.sub(r'(\d{4})(?=\d)', r'\1 ', cleaned_string)
+
+def time_parser_from_llm(llm_response):
+    lines = llm_response.strip().split('\n')
+
+    # Patterns for date and time
+    date_pattern = r"\d{2}-\d{2}-\d{4}"
+    time_pattern = r"\d{2}:\d{2}:\d{2}"
+
+    # Extract the date from the first line
+    date_match = re.search(date_pattern, llm_response)
+    date = date_match.group(0) if date_match else None
+
+    # List to store the extracted times
+    extracted_times = []
+
+    # Process each line to extract the first time
+    for line in lines:
+        # Ensure the line starts with the index (e.g., '0.', '1.', etc.)
+        if re.match(r"\d+\.", line):
+            # Extract the first valid time from the line
+            time_match = re.search(time_pattern, line)
+            if time_match:
+                extracted_times.append(time_match.group(0))  # Only the first time is captured
+
+    # Output the extracted date and times
+    print(f"Date: {date}")
+    print("Times:")
+    for time in extracted_times:
+        print(time)
+
+    return date, extracted_times
+
+def time_difference_in_seconds(time_strings):
+    # Parse the time strings into datetime objects
+    time_format = "%H:%M:%S"
+    times = [datetime.strptime(time, time_format) for time in time_strings]
+    
+    # Calculate the difference in seconds between adjacent times
+    differences = []
+    for i in range(1, len(times)):
+        diff = (times[i] - times[i - 1]).total_seconds()
+        differences.append(diff)
+    
+    return np.array(differences)
+
+def outlier_present(array):
+    mean = np.mean(array)
+    std_dev = np.std(array)
+
+    threshold = 1
+
+    outliers = np.where(np.abs(array - mean) > threshold * std_dev)
+
+    print(f"Mean: {mean}")
+    print(f"Standard Deviation: {std_dev}")
+    print(f"Outliers at indices: {outliers}")
+
+    if len(outliers[0]) > 0:
+        return True
+    else:
+        return False
+    
+    

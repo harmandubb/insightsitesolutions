@@ -5,7 +5,7 @@ setup_logger()
 import numpy as np
 import os, json, cv2, random
 import pytesseract
-from extract_time import crop_to_time, extract_time_white_filter, extract_time_combined_filter, extract_time_black_filter, extract_valid_characters
+from extract_time import crop_to_time, extract_time_white_filter, extract_time_combined_filter, extract_time_black_filter, extract_valid_characters, time_parser_from_llm, time_difference_in_seconds, outlier_present
 
 from tracker import match_boxes
 
@@ -20,6 +20,11 @@ from detectron2.config import get_cfg
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog, DatasetCatalog
 
+# Constants
+TIME_FRAMES_RECORDED=15
+TIME_FRAME_FREQUENCY=4
+TOTAL_TIME_FRAMES=TIME_FRAMES_RECORDED*TIME_FRAME_FREQUENCY
+TIME_COMPARISON_GROUP_SIZE=5
 
 
 def main():
@@ -48,11 +53,15 @@ def main():
     prev_frame_boxes = []
     prev_frame_classes = []
     prev_keep = []
-    times = []
-    time_iterator = 0
-    analyize_iterator = 0
-    llm_use = True
-    time_entries = 15
+    time_data = []
+    time_frames_count = 0
+    frame_iterator = 0
+    llm_response = ""
+    time_difs = []
+    average_time_per_frame = 0
+
+    # flags 
+    do_llm_time_prompt = True
 
     while True:
         # Read the video frame by frame
@@ -60,29 +69,62 @@ def main():
 
         # Exit the loop if no more frames are available or the video ends
         if not ret:
-            print(times)
             break
+
         
-        if (analyize_iterator % 20 == 0):
-            time_crop = crop_to_time(im, (200, 950), (800, height))
-            time_white, filtered_white = extract_time_white_filter(time_crop)
-            # print("WHITE FILTER", time_white)
-            time_black, filtered_black = extract_time_black_filter(time_crop)
-            # print("BLACK FILTER", time_black)
-            time_combined = extract_time_combined_filter(filtered_white,filtered_black)
-            # print("COMBINE FILTER", time_combined)
+        if (do_llm_time_prompt):
+            # still need to do the time llm thing
+            if ((frame_iterator % TIME_FRAME_FREQUENCY) == 0):
+                # record a time frame to extract time from
+                time_crop = crop_to_time(im, (200, 950), (800, height))
+                time_white, filtered_white = extract_time_white_filter(time_crop)
+                # print("WHITE FILTER", time_white)
+                time_black, filtered_black = extract_time_black_filter(time_crop)
+                # print("BLACK FILTER", time_black)
+                time_combined = extract_time_combined_filter(filtered_white,filtered_black)
+                # print("COMBINE FILTER", time_combined)
 
-            times.append([time_iterator, extract_valid_characters(time_white), extract_valid_characters(time_combined)])
-            time_iterator = time_iterator + 1
+                time_data.append([time_frames_count, extract_valid_characters(time_white), extract_valid_characters(time_combined)])
+                time_frames_count = time_frames_count + 1
 
-            masked_frame = cv2.bitwise_and(im, im, mask=mask)
+                masked_frame = cv2.bitwise_and(im, im, mask=mask)
+                
+            frame_iterator = frame_iterator + 1
 
-        analyize_iterator = analyize_iterator + 1
+            if ((time_frames_count == TIME_FRAMES_RECORDED)):
+                prompt = create_prompt(time_data,TIME_FRAMES_RECORDED)
+                llm_response = prompt_model(prompt)
+                do_llm_time_prompt = False
 
-        if ((time_iterator == time_entries) and (llm_use == True)):
-            prompt = create_prompt(times,time_entries)
-            response = prompt_model(prompt)
-            llm_use = False
+                # conduct logic here to determine the time that has passed and the timer average per-frame
+                # 1. parse the times to be in there seperate variables
+                date, times = time_parser_from_llm(llm_response['response'])
+                # 2. create 3 groups of 5
+                for i in range(0, TIME_FRAMES_RECORDED // TIME_COMPARISON_GROUP_SIZE):
+                    time_dif = time_difference_in_seconds(times[i*TIME_COMPARISON_GROUP_SIZE:(i+1)*TIME_COMPARISON_GROUP_SIZE])
+                    print(time_dif)
+                    # 3. check if the sets are sequential if not then discared the set 
+                    if(np.all(time_dif > 0) and (len(time_dif) == TIME_COMPARISON_GROUP_SIZE-1)):
+                        outlier = outlier_present(time_dif)
+                        print(outlier)
+                        if not outlier:
+                            time_difs.append(time_dif)
+                
+                print(time_difs)
+                if (len(time_difs)>0):
+                # 4. The difference between the times shuold be fairly close. If more than 2 then there is an issue. 
+                # 5. Find the average of the sets. 
+                    means_of_arrays = [np.mean(difs) for difs in time_difs]
+                    # 6. based on the above determine the best average rate perframe that should be adoppted. 
+                    average_time_per_frame = np.mean(means_of_arrays)/TIME_FRAME_FREQUENCY
+                    print(average_time_per_frame)
+                    do_llm_time_prompt = False
+                else:
+                    do_llm_time_prompt = True
+                    time_frames_count = 0
+                    frame_iterator = 0
+
+
 
         outputs = predictor(masked_frame)
 
