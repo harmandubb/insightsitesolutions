@@ -4,6 +4,8 @@ import numpy as np
 import re
 from datetime import datetime
 
+from llm import create_prompt, prompt_model
+
 def extract_time_white_filter(im, black_threshold=20, white_threshold=220):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     # cv2.imshow('GRAY TIME', gray)
@@ -197,4 +199,37 @@ def outlier_present(array):
     else:
         return False
     
+
+def get_video_time_parameters(time_data, TIME_FRAMES_RECORDED, TIME_COMPARISON_GROUP_SIZE,TIME_FRAME_FREQUENCY):
+    time_difs = []
+    average_time_per_frame = 0
+    llm_response = ""
+
+    prompt = create_prompt(time_data,TIME_FRAMES_RECORDED)
+    llm_response = prompt_model(prompt)
+
+    # conduct logic here to determine the time that has passed and the timer average per-frame
+    # 1. parse the times to be in there seperate variables
+    date, times = time_parser_from_llm(llm_response['response'])
+    start_time = times[0]
+    # 2. create 3 groups of 5
+    for i in range(0, TIME_FRAMES_RECORDED // TIME_COMPARISON_GROUP_SIZE):
+        time_dif = time_difference_in_seconds(times[i*TIME_COMPARISON_GROUP_SIZE:(i+1)*TIME_COMPARISON_GROUP_SIZE])
+        print(time_dif)
+        # 3. check if the sets are sequential if not then discared the set 
+        if(np.all(time_dif > 0) and (len(time_dif) == TIME_COMPARISON_GROUP_SIZE-1)):
+            outlier = outlier_present(time_dif)
+            print(outlier)
+            if not outlier:
+                time_difs.append(time_dif)
     
+    print(time_difs)
+    if (len(time_difs)>0):
+    # 4. The difference between the times shuold be fairly close. If more than 2 then there is an issue. 
+    # 5. Find the average of the sets. 
+        means_of_arrays = [np.mean(difs) for difs in time_difs]
+        # 6. based on the above determine the best average rate perframe that should be adoppted. 
+        average_time_per_frame = np.mean(means_of_arrays)/TIME_FRAME_FREQUENCY
+        print(average_time_per_frame)
+    
+    return average_time_per_frame, date, start_time

@@ -5,7 +5,7 @@ setup_logger()
 import numpy as np
 import os, json, cv2, random
 import pytesseract
-from extract_time import crop_to_time, extract_time_white_filter, extract_time_combined_filter, extract_time_black_filter, extract_valid_characters, time_parser_from_llm, time_difference_in_seconds, outlier_present
+from extract_time import crop_to_time, extract_time_white_filter, extract_time_combined_filter, extract_time_black_filter, extract_valid_characters, get_video_time_parameters
 
 from tracker import match_boxes
 
@@ -56,8 +56,7 @@ def main():
     time_data = []
     time_frames_count = 0
     frame_iterator = 0
-    llm_response = ""
-    time_difs = []
+    
     average_time_per_frame = 0
 
     # flags 
@@ -92,32 +91,12 @@ def main():
             frame_iterator = frame_iterator + 1
 
             if ((time_frames_count == TIME_FRAMES_RECORDED)):
-                prompt = create_prompt(time_data,TIME_FRAMES_RECORDED)
-                llm_response = prompt_model(prompt)
-                do_llm_time_prompt = False
-
-                # conduct logic here to determine the time that has passed and the timer average per-frame
-                # 1. parse the times to be in there seperate variables
-                date, times = time_parser_from_llm(llm_response['response'])
-                # 2. create 3 groups of 5
-                for i in range(0, TIME_FRAMES_RECORDED // TIME_COMPARISON_GROUP_SIZE):
-                    time_dif = time_difference_in_seconds(times[i*TIME_COMPARISON_GROUP_SIZE:(i+1)*TIME_COMPARISON_GROUP_SIZE])
-                    print(time_dif)
-                    # 3. check if the sets are sequential if not then discared the set 
-                    if(np.all(time_dif > 0) and (len(time_dif) == TIME_COMPARISON_GROUP_SIZE-1)):
-                        outlier = outlier_present(time_dif)
-                        print(outlier)
-                        if not outlier:
-                            time_difs.append(time_dif)
+                average_time_per_frame, date, start_time = get_video_time_parameters(time_data, TIME_FRAMES_RECORDED, TIME_COMPARISON_GROUP_SIZE,TIME_FRAME_FREQUENCY)
+                print("AVERAGE_TIME_PER_FRAME:", average_time_per_frame)
+                print("DATE:", date)
+                print("START_TIME", start_time)
                 
-                print(time_difs)
-                if (len(time_difs)>0):
-                # 4. The difference between the times shuold be fairly close. If more than 2 then there is an issue. 
-                # 5. Find the average of the sets. 
-                    means_of_arrays = [np.mean(difs) for difs in time_difs]
-                    # 6. based on the above determine the best average rate perframe that should be adoppted. 
-                    average_time_per_frame = np.mean(means_of_arrays)/TIME_FRAME_FREQUENCY
-                    print(average_time_per_frame)
+                if average_time_per_frame >  0:
                     do_llm_time_prompt = False
                 else:
                     do_llm_time_prompt = True
