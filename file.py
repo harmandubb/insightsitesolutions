@@ -13,26 +13,35 @@ def write_to_file(filename, data, mode='a'):
         line = ' '.join([str(item) for item in data])
         file.write(line + '\n')  # Write in the same line with a newline at the end
 
-def read_file_by_lines(file_name, num_lines):
+def read_file_by_lines(file_name, num_lines, start_line=0):
     """
-    Reads the specified number of lines from a file.
+    Reads the specified number of lines from a file, starting from a given line.
     
     Args:
     file_name (str): The name or path of the file to read.
     num_lines (int): The number of lines to read from the file.
+    start_line (int): The line number to start reading from (0-based).
     
     Returns:
     list: A list of the lines read from the file.
     """
     lines = []
+    lines_to_read = True
     with open(file_name, 'r') as file:
-        for i in range(num_lines):
+        # Skip lines until reaching the start_line
+        for _ in range(start_line):
+            file.readline()
+
+        # Now read the specified number of lines
+        for _ in range(num_lines):
             line = file.readline()
             if not line:
+                lines_to_read = False 
                 break  # Stop if there are no more lines to read
             lines.append(line.strip())  # Add the line (without newline characters)
     
-    return lines
+    return lines, lines_to_read
+
 
 
 
