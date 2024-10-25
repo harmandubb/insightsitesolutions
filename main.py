@@ -5,7 +5,8 @@ setup_logger()
 import numpy as np
 import os, json, cv2, random
 import pytesseract
-from extract_time import crop_to_time, extract_time_white_filter, extract_time_combined_filter, extract_time_black_filter, extract_valid_characters, get_video_time_parameters
+from extract_time import crop_to_time, get_time_filters, extract_valid_characters, get_video_time_parameters
+from file import write_to_file
 
 from tracker import match_boxes
 
@@ -25,6 +26,7 @@ TIME_FRAMES_RECORDED=15
 TIME_FRAME_FREQUENCY=4
 TOTAL_TIME_FRAMES=TIME_FRAMES_RECORDED*TIME_FRAME_FREQUENCY
 TIME_COMPARISON_GROUP_SIZE=5
+VIDEO_DATA_FILE="video_data.txt"
 
 
 def main():
@@ -59,8 +61,14 @@ def main():
     
     average_time_per_frame = 0
 
+    video_tracking = []
+    class_pairs = []
+
     # flags 
     do_llm_time_prompt = True
+
+    write_to_file(VIDEO_DATA_FILE, "", mode="w")
+
 
     while True:
         # Read the video frame by frame
@@ -74,28 +82,25 @@ def main():
         if (do_llm_time_prompt):
             # still need to do the time llm thing
             if ((frame_iterator % TIME_FRAME_FREQUENCY) == 0):
-                # record a time frame to extract time from
                 time_crop = crop_to_time(im, (200, 950), (800, height))
-                time_white, filtered_white = extract_time_white_filter(time_crop)
-                # print("WHITE FILTER", time_white)
-                time_black, filtered_black = extract_time_black_filter(time_crop)
-                # print("BLACK FILTER", time_black)
-                time_combined = extract_time_combined_filter(filtered_white,filtered_black)
-                # print("COMBINE FILTER", time_combined)
-
-                time_data.append([time_frames_count, extract_valid_characters(time_white), extract_valid_characters(time_combined)])
+                white_filter, _, combined_filter = get_time_filters(time_crop)
+                time_data.append([time_frames_count, extract_valid_characters(white_filter), extract_valid_characters(combined_filter)])
                 time_frames_count = time_frames_count + 1
 
-                masked_frame = cv2.bitwise_and(im, im, mask=mask)
-                
-            frame_iterator = frame_iterator + 1
+            
 
             if ((time_frames_count == TIME_FRAMES_RECORDED)):
                 average_time_per_frame, date, start_time = get_video_time_parameters(time_data, TIME_FRAMES_RECORDED, TIME_COMPARISON_GROUP_SIZE,TIME_FRAME_FREQUENCY)
                 print("AVERAGE_TIME_PER_FRAME:", average_time_per_frame)
                 print("DATE:", date)
                 print("START_TIME", start_time)
-                
+                write_to_file("video_parameters.txt", [
+                                                        f"Average_TIMER_PER_FRAME: {average_time_per_frame}",
+                                                        f"DATE: {date}",
+                                                        f"START_TIME: {start_time}"
+                                                    ],
+                                mode='w')
+
                 if average_time_per_frame >  0:
                     do_llm_time_prompt = False
                 else:
@@ -103,8 +108,9 @@ def main():
                     time_frames_count = 0
                     frame_iterator = 0
 
+        frame_iterator = frame_iterator + 1
 
-
+        masked_frame = cv2.bitwise_and(im, im, mask=mask)
         outputs = predictor(masked_frame)
 
         pred_boxes = outputs["instances"].pred_boxes.tensor
@@ -116,8 +122,15 @@ def main():
 
         if len(prev_frame_boxes) > 0:
             matched_pairs, class_pairs = match_boxes(prev_frame_boxes,pred_boxes,prev_frame_classes, pred_classes, prev_keep, curr_keep)
-            # print("Matched boxes between frames:", matched_pairs)
-            # print("Matches classes between frames:", class_pairs)
+            print("Matched boxes between frames:", matched_pairs)
+            print("Matches classes between frames:", class_pairs)
+
+
+        video_tracking.append([frame_iterator, class_pairs])
+
+        write_to_file(VIDEO_DATA_FILE,[frame_iterator, class_pairs], mode='a')
+
+        print(video_tracking[frame_iterator-1])    
 
         prev_frame_boxes = pred_boxes
         prev_frame_classes = pred_classes

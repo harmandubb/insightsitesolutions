@@ -132,6 +132,17 @@ def crop_to_time(im, top_left, bottom_right):
 
     return cropped_im
 
+def get_time_filters(time_crop):
+    # record a time frame to extract time from
+    time_white, filtered_white = extract_time_white_filter(time_crop)
+    # print("WHITE FILTER", time_white)
+    time_black, filtered_black = extract_time_black_filter(time_crop)
+    # print("BLACK FILTER", time_black)
+    time_combined = extract_time_combined_filter(filtered_white,filtered_black)
+    # print("COMBINE FILTER", time_combined)
+
+    return time_white, time_black, time_combined
+
 def extract_valid_characters(input_string):
     # Extract valid characters (numerical, colon, and hyphen)
     cleaned_string = ''.join([char for char in input_string if char.isdigit() or char in [':', '-']])
