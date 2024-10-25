@@ -10,7 +10,7 @@ DATA_FILE = "video_data.txt"
 VIDEO_PARAMETERS_FILE = "video_parameters.txt"
 TIME_ANALYSIS_PER_PASS = 60  # seconds
 DATA_SMOOTHING_WINDOW_CARS = 6
-DATA_SMOOTHING_WINDOW_PEOPLE = 30
+DATA_SMOOTHING_WINDOW_PEOPLE = 25
 
 average_time_per_frame = 0
 
@@ -26,7 +26,7 @@ def main():
     average_time_per_frame, date, start_time = extract_video_parameters(VIDEO_PARAMETERS_FILE)
     
     # Calculate the number of lines to read based on average time per frame
-    num_lines_read = int(TIME_ANALYSIS_PER_PASS / average_time_per_frame)
+    num_lines_read = int(TIME_ANALYSIS_PER_PASS / average_time_per_frame)*10
     
     # Read the data
     while (lines_to_read):
@@ -47,9 +47,9 @@ def main():
 
         # Plot people count over time
         plt.figure(0)
-        plt.scatter(time_pd, people_pd, label="People Count")
+        # plt.scatter(time_pd, people_pd, label="People Count")
         plt.scatter(time_pd, people_pd.rolling(window=DATA_SMOOTHING_WINDOW_PEOPLE).mean(), label="Rolling Mean (People)")
-        plt.plot(time_pd, np.round(people_pd.rolling(window=DATA_SMOOTHING_WINDOW_PEOPLE).mean()), label="Floored Rolling Mean (People)")
+        plt.scatter(time_pd, np.round(people_pd.rolling(window=DATA_SMOOTHING_WINDOW_PEOPLE).mean()), label="Rounded Rolling Mean (People)")
         plt.xlabel("Time")
         plt.ylabel("People Count")
         plt.title("People Count Over Time")
@@ -57,9 +57,9 @@ def main():
 
         # Plot car count over time
         plt.figure(1)
-        plt.scatter(time_pd, car_pd, label="Car Count")
+        # plt.scatter(time_pd, car_pd, label="Car Count")
         plt.scatter(time_pd, car_pd.rolling(window=DATA_SMOOTHING_WINDOW_CARS).mean(), label="Rolling Mean (Car)")
-        plt.plot(time_pd, np.floor(car_pd.rolling(window=DATA_SMOOTHING_WINDOW_CARS).mean()), label="Floored Rolling Mean (Car)")
+        plt.scatter(time_pd, np.round(car_pd.rolling(window=DATA_SMOOTHING_WINDOW_CARS).mean()), label="Rounded Rolling Mean (Car)")
         plt.xlabel("Time")
         plt.ylabel("Car Count")
         plt.title("Car Count Over Time")
@@ -67,7 +67,7 @@ def main():
 
         # Calculate differences for people and cars (change over time)
         diff_people = pd.Series(np.round(people_pd.rolling(window=DATA_SMOOTHING_WINDOW_PEOPLE).mean())).diff().dropna().astype(int)
-        diff_cars = pd.Series(np.floor(car_pd.rolling(window=DATA_SMOOTHING_WINDOW_CARS).mean())).diff().dropna().astype(int)
+        diff_cars = pd.Series(np.round(car_pd.rolling(window=DATA_SMOOTHING_WINDOW_CARS).mean())).diff().dropna().astype(int)
 
         # Plot differences over time
         plt.figure(2)
