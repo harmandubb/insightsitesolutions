@@ -1,7 +1,7 @@
 from file import read_file_by_lines
 from analysis_parsing import extract_video_parameters, analysis_data_extract
 from datetime import datetime, time
-from analysis_data import count_class_overtime
+from analysis_data import count_class_overtime, object_change_over_time, object_change_in_rolling_average
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -32,6 +32,7 @@ def main():
     while (lines_to_read):
         lines, lines_to_read = read_file_by_lines(DATA_FILE, num_lines_read, start_line=start_line*num_lines_read-1)
         for line in lines: 
+            # could modify this function to modify the time using timedelta(secounds=n)
             time_array, people_count_array, car_count_array = count_class_overtime(
                 analysis_data_extract(line)[0], 
                 time_array, 
@@ -45,52 +46,11 @@ def main():
         people_pd = pd.Series(people_count_array)
         car_pd = pd.Series(car_count_array)
 
-        # Plot people count over time
-        plt.figure(0)
-        # plt.scatter(time_pd, people_pd, label="People Count")
-        plt.scatter(time_pd, people_pd.rolling(window=DATA_SMOOTHING_WINDOW_PEOPLE).mean(), label="Rolling Mean (People)")
-        plt.scatter(time_pd, np.round(people_pd.rolling(window=DATA_SMOOTHING_WINDOW_PEOPLE).mean()), label="Rounded Rolling Mean (People)")
-        plt.xlabel("Time")
-        plt.ylabel("People Count")
-        plt.title("People Count Over Time")
-        plt.legend()
+        rolling_average_people, rolling_average_cars = object_change_over_time(time_pd=time_pd,people_pd=people_pd,car_pd=car_pd,data_smoothing_window_cars=DATA_SMOOTHING_WINDOW_CARS, data_smoothing_window_people=DATA_SMOOTHING_WINDOW_PEOPLE)
 
-        # Plot car count over time
-        plt.figure(1)
-        # plt.scatter(time_pd, car_pd, label="Car Count")
-        plt.scatter(time_pd, car_pd.rolling(window=DATA_SMOOTHING_WINDOW_CARS).mean(), label="Rolling Mean (Car)")
-        plt.scatter(time_pd, np.round(car_pd.rolling(window=DATA_SMOOTHING_WINDOW_CARS).mean()), label="Rounded Rolling Mean (Car)")
-        plt.xlabel("Time")
-        plt.ylabel("Car Count")
-        plt.title("Car Count Over Time")
-        plt.legend()
+        pos_diff_cars, neg_diff_cars, pos_diff_people, neg_diff_people = object_change_in_rolling_average(rolling_average_people, rolling_average_cars,time_pd)
 
-        # Calculate differences for people and cars (change over time)
-        diff_people = pd.Series(np.round(people_pd.rolling(window=DATA_SMOOTHING_WINDOW_PEOPLE).mean())).diff().dropna().astype(int)
-        diff_cars = pd.Series(np.round(car_pd.rolling(window=DATA_SMOOTHING_WINDOW_CARS).mean())).diff().dropna().astype(int)
-
-        # Plot differences over time
-        plt.figure(2)
-        plt.scatter(time_pd[len(time_pd) - len(diff_people):], diff_people, label="People Change")
-        plt.scatter(time_pd[len(time_pd) - len(diff_cars):], diff_cars, label="Car Change")
-        plt.xlabel("Time")
-        plt.ylabel("Change")
-        plt.title("Change in People and Cars Over Time")
-        plt.legend()
-
-        # Summing positive and negative changes
-        pos_diff_cars = diff_cars[diff_cars > 0].sum()
-        neg_diff_cars = diff_cars[diff_cars < 0].sum()
-        print("Cars entered the plaza (past minute):", pos_diff_cars)
-        print("Cars left the plaza (past minute):", neg_diff_cars)
-
-        pos_diff_people = diff_people[diff_people > 0].sum()
-        neg_diff_people = diff_people[diff_people < 0].sum()
-        print("People entered the plaza (past minute):", pos_diff_people)
-        print("People left the plaza (past minute):", neg_diff_people)
-
-        # Show plots
-        plt.show()
+        
 
         start_line = start_line + 1
 
