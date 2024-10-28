@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np 
 import pandas as pd
 
@@ -23,6 +24,12 @@ def object_change_over_time(time_pd, people_pd, car_pd, data_smoothing_window_pe
         # plt.scatter(time_pd, people_pd, label="People Count")
         plt.scatter(time_pd, people_pd.rolling(window=data_smoothing_window_people).mean(), label="Rolling Mean (People)")
         plt.scatter(time_pd, np.round(people_pd.rolling(window=data_smoothing_window_people).mean()), label="Rounded Rolling Mean (People)")
+
+        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))  # Show hours:minutes
+        plt.gca().xaxis.set_major_locator(mdates.MinuteLocator(interval=1800))  # Tick every 10 minutes
+
+        # Rotate the x-axis labels for better readability
+        plt.gcf().autofmt_xdate()
         plt.xlabel("Time")
         plt.ylabel("People Count")
         plt.title("People Count Over Time")
@@ -33,6 +40,10 @@ def object_change_over_time(time_pd, people_pd, car_pd, data_smoothing_window_pe
         # plt.scatter(time_pd, car_pd, label="Car Count")
         plt.scatter(time_pd, car_pd.rolling(window=data_smoothing_window_cars).mean(), label="Rolling Mean (Car)")
         plt.scatter(time_pd, np.round(car_pd.rolling(window=data_smoothing_window_cars).mean()), label="Rounded Rolling Mean (Car)")
+
+        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))  # Show hours:minutes
+        plt.gca().xaxis.set_major_locator(mdates.MinuteLocator(interval=1800))  # Tick every 10 minutes
+        
         plt.xlabel("Time")
         plt.ylabel("Car Count")
         plt.title("Car Count Over Time")
