@@ -7,9 +7,9 @@ import pandas as pd
 import numpy as np
 from time_functions import TimeTracker
 
-DATA_FILE = "video_data.txt"
-VIDEO_PARAMETERS_FILE = "video_parameters.txt"
-TIME_ANALYSIS_PER_PASS = 60  # seconds
+DATA_FILE = "videos\Elginpark_Cam4_Elgin_Park_Elgin_Park_20240918113606_20240918115914_12838717.mp4_video_data.txt"
+VIDEO_PARAMETERS_FILE = "videos\Elginpark_Cam4_Elgin_Park_Elgin_Park_20240918113606_20240918115914_12838717.mp4_video_parameters.txt"
+TIME_ANALYSIS_PER_PASS = 1000  # seconds
 DATA_SMOOTHING_WINDOW_CARS = 6
 DATA_SMOOTHING_WINDOW_PEOPLE = 25
 
@@ -58,11 +58,13 @@ def main():
 
         rolling_average_people, rolling_average_cars = object_change_over_time(time_pd=time_pd,people_pd=people_pd,car_pd=car_pd,data_smoothing_window_cars=DATA_SMOOTHING_WINDOW_CARS, data_smoothing_window_people=DATA_SMOOTHING_WINDOW_PEOPLE, show_plots=True)
 
-        pos_diff_cars, neg_diff_cars, pos_diff_people, neg_diff_people = object_change_in_rolling_average(rolling_average_people, rolling_average_cars,time_pd)
+        pos_diff_cars, neg_diff_cars, pos_diff_people, neg_diff_people = object_change_in_rolling_average(rolling_average_people, rolling_average_cars,time_pd, show_plots=True)
 
-        
+        # metrics to focus on: rolling average people, rolling average cars, pos diff caras and neg diff cars
 
         start_line = start_line + 1
+
+        plt.show()
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ def object_change_over_time(time_pd, people_pd, car_pd, data_smoothing_window_pe
         plt.ylabel("Car Count")
         plt.title("Car Count Over Time")
         plt.legend()
-        plt.show()
+        
 
     return rolling_average_people, rolling_average_cars
 
@@ -84,6 +84,6 @@ def object_change_in_rolling_average(rolling_average_people, rolling_average_car
         print("People left the plaza (past minute):", neg_diff_people)
 
         # Show plots
-        plt.show()
+        
 
     return pos_diff_cars, neg_diff_cars, pos_diff_people, neg_diff_people

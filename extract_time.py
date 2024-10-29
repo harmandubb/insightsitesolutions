@@ -8,13 +8,21 @@ from llm import create_prompt, prompt_model
 
 def extract_time_white_filter(im, black_threshold=20, white_threshold=220):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    # cv2.imshow('GRAY TIME', gray)
+    cv2.imshow('GRAY TIME', gray)
     
     # Create a mask for white regions (pixel value 255)
     white_mask = cv2.inRange(gray, white_threshold, 255)  # Pixels that are exactly white
-    # cv2.imshow('WHITE MASK', white_mask)
+    cv2.imshow('WHITE MASK', white_mask)
 
-    denoised_w_img = cv2.medianBlur(white_mask, 3)
+    kernel_size=(3,3)
+
+    # Create a structuring element (kernel)
+    kernel = np.ones(kernel_size, np.uint8)
+
+    opening = cv2.morphologyEx(white_mask, cv2.MORPH_OPEN, kernel)
+    cv2.imshow('WHITE MASK - NOISE FILTER - OPENDED', opening)
+
+    denoised_w_img = cv2.medianBlur(opening, 3)
     cv2.imshow('WHITE MASK - NOISE FILTER', denoised_w_img)
 
     extracted_text = pytesseract.image_to_string(denoised_w_img)
@@ -197,7 +205,7 @@ def outlier_present(array):
     mean = np.mean(array)
     std_dev = np.std(array)
 
-    threshold = 1
+    threshold = 2
 
     outliers = np.where(np.abs(array - mean) > threshold * std_dev)
 
