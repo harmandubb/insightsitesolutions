@@ -28,8 +28,8 @@ TIME_FRAMES_RECORDED=15
 TIME_FRAME_FREQUENCY=4
 TOTAL_TIME_FRAMES=TIME_FRAMES_RECORDED*TIME_FRAME_FREQUENCY
 TIME_COMPARISON_GROUP_SIZE=2
-VIDEO_DATA_FILE="video_data.txt"
-FRAME_SKIP=5
+VIDEO_DATA_FILE_SUFFIX="video_data.txt"
+FRAME_SKIP=10
 
 
 def main():
@@ -82,7 +82,7 @@ def main():
             # flags 
             do_llm_time_prompt = True
 
-            write_to_file(str(video_file) + "_" + VIDEO_DATA_FILE, "", mode="w")
+            write_to_file(str(video_file) + "_" + VIDEO_DATA_FILE_SUFFIX, "", mode="w")
         else: 
             return
 
@@ -115,7 +115,7 @@ def main():
                         print("DATE:", date)
                         print("START_TIME", start_time)
                         write_to_file(str(video_file) + "_video_parameters.txt", [
-                                                                f"Average_TIMER_PER_FRAME: {average_time_per_frame}",
+                                                                f"Average_TIME_PER_FRAME: {average_time_per_frame}",
                                                                 f"DATE: {date}",
                                                                 f"START_TIME: {start_time}"
                                                             ],
@@ -142,15 +142,15 @@ def main():
 
                 if len(prev_frame_boxes) > 0:
                     matched_pairs, class_pairs = match_boxes(prev_frame_boxes,pred_boxes,prev_frame_classes, pred_classes, prev_keep, curr_keep)
-                    print("Matched boxes between frames:", matched_pairs)
-                    print("Matches classes between frames:", class_pairs)
+                    # print("Matched boxes between frames:", matched_pairs)
+                    # print("Matches classes between frames:", class_pairs)
 
 
                 video_tracking.append([frame_iterator, class_pairs])
 
-                write_to_file(str(video_file) + "_" + VIDEO_DATA_FILE,[frame_iterator, class_pairs], mode='a')
+                write_to_file(str(video_file) + "_" + VIDEO_DATA_FILE_SUFFIX,[frame_iterator, class_pairs], mode='a')
 
-                print(video_tracking[frame_iterator-1])    
+                # print(video_tracking[frame_iterator-1])    
 
                 prev_frame_boxes = pred_boxes
                 prev_frame_classes = pred_classes

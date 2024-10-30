@@ -26,7 +26,7 @@ def read_file_by_lines(file_name, num_lines, start_line=0):
     list: A list of the lines read from the file.
     """
     lines = []
-    lines_to_read = True
+    read_lines = True
     with open(file_name, 'r') as file:
         # Skip lines until reaching the start_line
         for _ in range(start_line):
@@ -36,11 +36,11 @@ def read_file_by_lines(file_name, num_lines, start_line=0):
         for _ in range(num_lines):
             line = file.readline()
             if not line:
-                lines_to_read = False 
+                read_lines = False 
                 break  # Stop if there are no more lines to read
             lines.append(line.strip())  # Add the line (without newline characters)
     
-    return lines, lines_to_read
+    return lines, read_lines
 
 
 

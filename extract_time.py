@@ -3,16 +3,56 @@ import pytesseract
 import numpy as np
 import re
 from datetime import datetime
+from number_recognition import NumberRecognizer 
 
 from llm import create_prompt, prompt_model
 
 def extract_time_white_filter(im, black_threshold=20, white_threshold=220):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     cv2.imshow('GRAY TIME', gray)
-    
+
+
+    # cv2.adaptiveThreshold()
+    threshold = kittler_threshold(gray)
+    print("THRESHOLD:", threshold)
+
+    _, binary_image = cv2.threshold(gray, 15, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    cv2.imshow('OTSU BINARY MASK - WHITE', binary_image)
+
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Loop through contours and filter based on size
+    for cnt in contours:
+        # Get the bounding box for each contour
+        x, y, w, h = cv2.boundingRect(cnt)
+        
+        # Filter out small contours (noise) based on width and height
+        if w > 100 and h > 100:  # Adjust these values as needed
+            # Draw bounding box around each detected contour
+            cv2.rectangle(gray, (x, y), (x + w, y + h), (0, 255, 0), 1)
+            
+            # Isolate each character or number using slicing
+            character = binary_image[y:y + h, x:x + w]
+            
+            # Optional: You can apply OCR on each isolated character here
+            # char_text = pytesseract.image_to_string(character, config='--psm 10')
+            # print("Detected Character:", char_text)
+
+    # Display the image with contours
+    cv2.imshow("Contours", gray)
+
+    mean_threshold = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 20)
+    cv2.imshow('ADAPTIVE Mean Threshold', mean_threshold)
+
+    gaussian_threshold = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 20)
+    cv2.imshow('ADAPTIVE GAUSSIAN THRESHOLD - WHITE', gaussian_threshold)
+
+
     # Create a mask for white regions (pixel value 255)
     white_mask = cv2.inRange(gray, white_threshold, 255)  # Pixels that are exactly white
     cv2.imshow('WHITE MASK', white_mask)
+
+    
 
     kernel_size=(3,3)
 
@@ -25,13 +65,22 @@ def extract_time_white_filter(im, black_threshold=20, white_threshold=220):
     denoised_w_img = cv2.medianBlur(opening, 3)
     cv2.imshow('WHITE MASK - NOISE FILTER', denoised_w_img)
 
-    extracted_text = pytesseract.image_to_string(denoised_w_img)
+    flipped_im = cv2.bitwise_not(denoised_w_img)
+    cv2.imshow('WHITE MASK - NOISE FILTER - Flipped', flipped_im)
+
+    extracted_text = pytesseract.image_to_string(flipped_im)
     
     return extracted_text, denoised_w_img
 
 def extract_time_black_filter(im, black_threshold=20, white_threshold=220):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     # cv2.imshow('GRAY TIME', gray)
+
+    threshold = kittler_threshold(gray)
+    print("THRESHOLD:", threshold)
+
+    _, binary_image = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY_INV)
+    cv2.imshow('BNINAIZATION MASK - BLACK', binary_image)
     
     # Create a mask for white regions (pixel value 255)
     black_mask = cv2.inRange(gray, 0, black_threshold)  # Pixels that are exactly white
@@ -42,6 +91,9 @@ def extract_time_black_filter(im, black_threshold=20, white_threshold=220):
 
     denoised_b_img = cv2.medianBlur(selective_noise_reduction, 3)
     cv2.imshow('BLACK MASK - SELEC NOISE - NOISE FILTER', denoised_b_img)
+    
+    flipped_im = cv2.bitwise_not(denoised_b_img)
+    cv2.imshow('BLACK MASK - NOISE FILTER - Flipped', flipped_im)
 
     extracted_text = pytesseract.image_to_string(denoised_b_img)
     
@@ -72,7 +124,10 @@ def extract_time_combined_filter(im_white, im_black):
     combined_img = cv2.bitwise_or(im_white, im_black)
     cv2.imshow('COMBINED IMAGE', combined_img)
 
-    extracted_text = pytesseract.image_to_string(combined_img)
+    flipped_im = cv2.bitwise_not(combined_img)
+    cv2.imshow('COMBINED IMAGE - Flipped', flipped_im)
+
+    extracted_text = pytesseract.image_to_string(flipped_im)
     
     return extracted_text
 
@@ -252,3 +307,42 @@ def get_video_time_parameters(time_data, TIME_FRAMES_RECORDED, TIME_COMPARISON_G
         print(average_time_per_frame)
     
     return average_time_per_frame, date, start_time
+
+def kittler_threshold(image):
+    # Calculate the histogram of the grayscale image
+    hist, bin_edges = np.histogram(image.ravel(), bins=256, range=(0, 256))
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+    # Normalize the histogram
+    hist = hist / hist.sum()
+
+    # Initialize minimum error and best threshold
+    min_error = np.inf
+    best_threshold = 0
+    epsilon = 1e-10  # Small value to prevent log(0)
+
+    # Iterate over all possible thresholds
+    for t in range(1, 255):
+        # Split the histogram into two groups
+        p0 = hist[:t].sum()
+        p1 = hist[t:].sum()
+
+        if p0 == 0 or p1 == 0:
+            continue
+
+        # Calculate means and variances with epsilon
+        mu0 = (hist[:t] * bin_centers[:t]).sum() / p0
+        mu1 = (hist[t:] * bin_centers[t:]).sum() / p1
+        var0 = (hist[:t] * (bin_centers[:t] - mu0) ** 2).sum() / p0 + epsilon
+        var1 = (hist[t:] * (bin_centers[t:] - mu1) ** 2).sum() / p1 + epsilon
+
+        # Calculate the error with epsilon to prevent division by zero
+        error = 1 + 2 * (p0 * np.log(np.sqrt(var0)) + p1 * np.log(np.sqrt(var1))) \
+                - 2 * (p0 * np.log(p0) + p1 * np.log(p1))
+
+        # Check if this threshold gives a lower error
+        if error < min_error:
+            min_error = error
+            best_threshold = t
+
+    return best_threshold

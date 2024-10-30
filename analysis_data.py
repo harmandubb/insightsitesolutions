@@ -4,11 +4,10 @@ import numpy as np
 import pandas as pd
 
 def count_class_overtime(data_array, time_array, people_array, car_array, average_time_per_frame):
-    time_array.append(data_array[0]*average_time_per_frame)
     people_array.append((data_array == 0).sum())
     car_array.append((data_array ==2).sum())
 
-    return time_array, people_array, car_array
+    return people_array, car_array
 
 def object_change_over_time(time_pd, people_pd, car_pd, data_smoothing_window_people, data_smoothing_window_cars, show_plots=False):
     # Plot people count over time
@@ -59,6 +58,9 @@ def object_change_in_rolling_average(rolling_average_people, rolling_average_car
     diff_people = rolling_average_people.diff().dropna().astype(int)
     diff_cars = rolling_average_cars.diff().dropna().astype(int)
 
+    print("DIFF PEOPLE:", diff_people)
+    print("DIFF CARS:", diff_cars)
+
     if (show_plots):
         # Plot differences over time
         plt.figure(2)
@@ -74,14 +76,14 @@ def object_change_in_rolling_average(rolling_average_people, rolling_average_car
     neg_diff_cars = diff_cars[diff_cars < 0].sum()
 
     if(show_plots):
-        print("Cars entered the plaza (past minute):", pos_diff_cars)
-        print("Cars left the plaza (past minute):", neg_diff_cars)
+        print("Cars entered the plaza:", pos_diff_cars)
+        print("Cars left the plaza:", neg_diff_cars)
 
     pos_diff_people = diff_people[diff_people > 0].sum()
     neg_diff_people = diff_people[diff_people < 0].sum()
     if(show_plots):
-        print("People entered the plaza (past minute):", pos_diff_people)
-        print("People left the plaza (past minute):", neg_diff_people)
+        print("People entered the plaza:", pos_diff_people)
+        print("People left the plaza:", neg_diff_people)
 
         # Show plots
         
