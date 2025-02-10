@@ -5,7 +5,7 @@ setup_logger()
 import numpy as np
 import os, json, cv2, random
 import pytesseract
-from extract_time import crop_to_time, get_time_filters, extract_valid_characters, get_video_time_parameters
+from extract_time import crop_to_time, get_time_filters, extract_valid_characters, get_video_time_parameters, extarct_time_experimental
 from file import write_to_file
 
 from tracker import match_boxes
@@ -100,6 +100,7 @@ def main():
                     # still need to do the time llm thing
                     if ((frame_iterator % TIME_FRAME_FREQUENCY) == 0):
                         time_crop = crop_to_time(im, (200, 950), (800, height))
+                        extarct_time_experimental(time_crop)
                         white_filter, _, combined_filter = get_time_filters(time_crop)
                         white_filter_time = extract_valid_characters(white_filter)
                         combined_filter_time = extract_valid_characters(combined_filter)

@@ -3,7 +3,7 @@ import json
 
 import ollama
 
-def prompt_model(user_prompt, model_use='gemma2'):
+def prompt_model(user_prompt, model_use='deepseek-r1:8b'):
 
     response = ollama.generate(model=model_use, prompt=user_prompt)
     
@@ -34,9 +34,9 @@ def create_prompt(time_lists, num_entries):
     
     # Dynamically insert num_entries into the end prompt
     endprompt = (
-        f"Look at each sublist and output a response in this format: index. MM-DD-YYYY HH:MM:SS. If you suspect an error is present, "
+        f"Look at each sublist and output a response in this format: index. MM-DD-YYYY HH:MM:SS for each group of inputs that are provided. If you suspect an error is present, "
         f"use the previous data to make an educated guess. The output should have {num_entries} entries (one for each sublist index). "
-        "The data sets were taken sequentially, so the entry at index 1 would have a time before the entry at index 2."
+        "The data sets were taken sequentially, so the entry at index 1 would have a time before the entry at index 2. If this pattern is not mentained for a certain entry when replace that entery with the previous time value"
     )
 
     # Combine the parts into the final prompt

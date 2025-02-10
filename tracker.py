@@ -1,42 +1,122 @@
-def compute_iou(box1, box2):
-    x1, y1, x2, y2 = box1
-    x1_p, y1_p, x2_p, y2_p = box2
-    
-    # Compute intersection
-    xi1, yi1 = max(x1, x1_p), max(y1, y1_p)
-    xi2, yi2 = min(x2, x2_p), min(y2, y2_p)
-    inter_area = max(0, xi2 - xi1) * max(0, yi2 - yi1)
-    
-    # Compute union
-    box1_area = (x2 - x1) * (y2 - y1)
-    box2_area = (x2_p - x1_p) * (y2_p - y1_p)
-    union_area = box1_area + box2_area - inter_area
-    
-    return inter_area / union_area
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision
+import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
+import argparse
+from torch.utils.data import DataLoader
+from multi_digit_cnn import MultiDigitCNN  # Import the CNN model
+from image_preprocessing import preprocess_image  # Import preprocessing function
 
-def match_boxes(previous_frame_boxes, current_frame_boxes, previous_class, current_class, prev_keep, curr_keep, iou_threshold=0.5):
-    matched_pairs = []
-    class_pairs = []
-
-    for current_idx in curr_keep:
-        best_iou = 0
-        best_prev_box = None
-        best_prev_idx = None
-
-        for prev_idx in prev_keep:
-            iou = compute_iou(current_frame_boxes[current_idx], previous_frame_boxes[prev_idx])
-            if iou > best_iou:
-                # Consider it as the same object
-                best_iou = iou
-                best_prev_box = previous_frame_boxes[prev_idx]
-                best_prev_idx = prev_idx
-
-        if best_iou > iou_threshold:
-            matched_pairs.append((best_prev_box,current_frame_boxes[current_idx]))
-            # check if the labels are the same 
-            if (((current_class[current_idx] == 2) or (current_class[current_idx] == 7)) and ((previous_class[best_prev_idx] == 2) or (previous_class[best_prev_idx] == 7))):
-                class_pairs.append(2)
-            elif (current_class[current_idx] == previous_class[best_prev_idx]): 
-                class_pairs.append(current_class[current_idx].item())
+def train_model(epochs, batch_size, learning_rate, save_path):
+    # Check if CUDA is available, otherwise exit with an error message
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type != "cuda":
+        raise RuntimeError("CUDA device not found. This script requires a GPU to run.")
     
-    return matched_pairs, class_pairs
+    # Load SVHN dataset with preprocessing pipeline
+    transform = transforms.Compose([
+        transforms.Grayscale(num_output_channels=1),  # Convert to grayscale
+        transforms.Resize((384, 384)),  # Resize as per the paper
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5], std=[0.5])  # Normalize to [-1,1]
+    ])
+    
+    trainset = torchvision.datasets.SVHN(root='./data', split='train', download=True, transform=transform)
+    testset = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform)
+    
+    train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
+    
+    # Model Initialization
+    num_classes = 18  # As described in the paper
+    model = MultiDigitCNN(num_classes)
+    model.to(device)
+    
+    # Loss Function and Optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    
+    # Training Loop
+    train_losses = []
+    test_losses = []
+    train_accuracies = []
+    test_accuracies = []
+    
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+        correct = 0
+        total = 0
+        
+        for images, labels in train_loader:
+            images, labels = images.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item()
+            _, predicted = torch.max(outputs, 1)
+            correct += (predicted == labels).sum().item()
+            total += labels.size(0)
+        
+        train_losses.append(running_loss / len(train_loader))
+        train_accuracies.append(100 * correct / total)
+        
+        # Evaluate on test set
+        model.eval()
+        test_loss = 0.0
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for images, labels in test_loader:
+                images, labels = images.to(device), labels.to(device)
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+                test_loss += loss.item()
+                _, predicted = torch.max(outputs, 1)
+                correct += (predicted == labels).sum().item()
+                total += labels.size(0)
+        
+        test_losses.append(test_loss / len(test_loader))
+        test_accuracies.append(100 * correct / total)
+        
+        print(f"Epoch [{epoch+1}/{epochs}], Train Loss: {train_losses[-1]:.4f}, Test Loss: {test_losses[-1]:.4f}, Train Acc: {train_accuracies[-1]:.2f}%, Test Acc: {test_accuracies[-1]:.2f}%")
+    
+    # Save Model
+    torch.save(model.state_dict(), save_path)
+    print(f"Model saved successfully at {save_path}.")
+    
+    # Plot Loss and Accuracy
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(range(1, epochs + 1), train_losses, label="Train Loss")
+    plt.plot(range(1, epochs + 1), test_losses, label="Test Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Training & Testing Loss")
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(range(1, epochs + 1), train_accuracies, label="Train Accuracy")
+    plt.plot(range(1, epochs + 1), test_accuracies, label="Test Accuracy")
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy (%)")
+    plt.title("Training & Testing Accuracy")
+    plt.legend()
+    
+    plt.show()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train MultiDigitCNN on SVHN Dataset")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--lr", type=float, default=0.0001, help="Learning rate")
+    parser.add_argument("--save_path", type=str, default="multi_digit_cnn_svhn.pth", help="Path to save the trained model")
+    
+    args = parser.parse_args()
+    
+    train_model(args.epochs, args.batch_size, args.lr, args.save_path)
