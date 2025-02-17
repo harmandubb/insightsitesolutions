@@ -1,11 +1,15 @@
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 import torch.optim as optim
 import torch.nn.functional as F
 
 class MultiDigitCNN(nn.Module):
-    def __init__(self, num_classes=18, dropout_rate=0.5):
+    def __init__(self, max_digits = 18, num_classes=10, dropout_rate=0.5):
         super(MultiDigitCNN, self).__init__()
+
+        self.max_digits = max_digits
+        self.num_classes = num_classes
         
         self.conv1 = nn.Conv2d(1, 48, kernel_size=5, stride=2, padding=2)
         self.bn1 = nn.BatchNorm2d(48)
@@ -50,8 +54,9 @@ class MultiDigitCNN(nn.Module):
         self.flatten_size = self._get_flatten_size()
         
         self.fc1 = nn.Linear(self.flatten_size, 512)
-        self.fc2 = nn.Linear(512, 512)
-        self.fc3 = nn.Linear(512, num_classes)  # Output layer for classification
+        self.fc2 = nn.Linear(512, self.max_digits*self.num_classes)
+
+
 
     def forward(self, x):
         x = self.dropout1(self.pool1(F.relu(self.bn1(self.conv1(x)))))
@@ -65,9 +70,11 @@ class MultiDigitCNN(nn.Module):
         
         x = torch.flatten(x, 1)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        
+        x = self.fc2(x)
+
+        x = x.view(-1, self.max_digits,self.num_classes)
+  
+        x = F.log_softmax(x,dim=2)
         return x
     
     def _get_flatten_size(self):
@@ -84,11 +91,19 @@ class MultiDigitCNN(nn.Module):
             x = self.pool8(F.relu(self.bn8(self.conv8(x))))
             return x.numel()
 
+def initialize_weights(m):
+    if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+        init.normal_(m.weight, mean=0.0, std=0.01)  # Gaussian (Normal) distribution
+        if m.bias is not None:
+            init.constant_(m.bias, 0)  # Bias to 0
+
 # Model instantiation
-num_classes = 18  # According to the paper
+num_classes = 10 
+max_digits = 18 # According to the paper
 dropout_rate = 0.5  # Default value, can be adjusted
-model = MultiDigitCNN(num_classes, dropout_rate)
+model = MultiDigitCNN(max_digits=max_digits,num_classes=num_classes, dropout_rate=dropout_rate)
+model.apply(initialize_weights)
 
 # Define loss function and optimizer
-criterion = nn.CrossEntropyLoss()
+criterion = nn.NLLLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.0001)
