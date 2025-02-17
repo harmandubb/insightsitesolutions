@@ -16,20 +16,6 @@ def train_model(model, train_loader, test_loader, save_path, epochs=10, batch_si
     if device.type != "cuda":
         raise RuntimeError("CUDA device not found. This script requires a GPU to run.")
 
-        
-    # Get one batch of images and labels
-    dataiter = iter(train_loader)
-    images, labels = next(dataiter)
-
-    show_images(images, labels, batch_size)
-
-
-    for inputs, labels in train_loader: 
-        print("Inputs shape:", inputs.shape)
-        print("Labels shape:", labels.shape)
-        print("Labels dtype:", labels.dtype)
-        print("Labels:", labels)
-        break
     
     # Model Initialization
     model.to(device)
